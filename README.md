@@ -1,9 +1,9 @@
-# 🛢️ Oil & Gas Pipeline Integrity Monitor
+# Oil & Gas Pipeline Integrity Monitor
 **Fog and Edge Computing CA Project**
 
 This project is a scalable IoT architecture simulating an Oil & Gas pipeline monitoring system. It uses **5 edge sensors**, a **Fog Node**, and a **Cloud Backend** with a responsive dashboard.
 
-## 🚀 Cloud9 Quickstart Guide
+## Cloud9 Quickstart Guide
 
 ### 1. Install Dependencies
 Open your AWS Cloud9 terminal and run:
@@ -34,7 +34,7 @@ You will see logs of the 5 sensors generating data and sending it to the Fog Nod
 
 ---
 
-## ☁️ AWS Cloud Integration (Optional but Recommended for H1 marks)
+## AWS Cloud Integration (Optional but Recommended for H1 marks)
 By default, if AWS is not configured, the system uses the local Fog Buffer (simulating a disconnected pipeline scenario). To connect to the real cloud:
 
 1. Create a queue in AWS SQS called `pipeline-sensor-data`.
@@ -47,7 +47,7 @@ SQS_PIPELINE_QUEUE=pipeline-sensor-data
 ```
 3. Restart the Django server. The Fog node will now push autonomously to AWS.
 
-## 📊 Features
+## Features
 * **5 Sensor Types**: Pressure, Flow Rate, H2S Toxic Gas, Corrosion degradation, and Valve Position.
 * **Autonomous Edge Actions**: If H2S levels spike critically, the Fog Node triggers shutoffs before the cloud is even notified.
 * **Offline Resilience**: Simulates real-world desert pipelines by buffering data locally if AWS goes down.
