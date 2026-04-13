@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Fog & Edge Monitoring</title>
+    <!-- Real-time optimization: Defer heavy scripts and preconnect fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Static CSS (Optimized) -->
+    <link rel="stylesheet" href="/static/css/dashboard_optimized.css">
+</head>
+<body class="min-h-screen p-6">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8 glass-panel p-6">
+        <div>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+                Pipeline Monitoring Dashboard
+            </h1>
+            <p class="text-slate-400 mt-1" id="last-updated">Connecting...</p>
+        </div>
+        <div class="flex gap-4">
+            <div class="text-center px-4 py-2 rounded-lg bg-emerald-900/50 border border-emerald-500">
+                <span class="block text-xs uppercase tracking-wider text-emerald-400">System Status</span>
+                <span class="font-bold text-emerald-300">ONLINE</span>
+            </div>
+            <div class="text-center px-4 py-2 rounded-lg bg-slate-800 border border-slate-600">
+                <span class="block text-xs uppercase tracking-wider text-slate-400">Data Source</span>
+                <span class="font-bold text-slate-300" id="sqs-status">Simulated/Local</span>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Dashboard Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- Chart: Pressure -->
+        <div class="glass-panel p-5">
+            <h2 class="text-xl font-semibold mb-1">Pressure Sensor</h2>
+            <p class="text-xs text-slate-400 mb-4">Safe range: 400-500 PSI</p>
+            <div class="relative h-48 w-full"><canvas id="chart-pressure"></canvas></div>
+            <div class="mt-4 flex justify-between items-end border-t border-slate-700 pt-3">
+                <span class="text-sm text-slate-400">Current Reading</span>
+                <span id="val-pressure" class="text-2xl font-bold font-mono">-- PSI</span>
+            </div>
+        </div>
+
+        <!-- Chart: Flow Rate -->
+        <div class="glass-panel p-5">
+            <h2 class="text-xl font-semibold mb-1">Flow Rate Sensor</h2>
+            <p class="text-xs text-slate-400 mb-4">Safe range: 1000-1200 L/min</p>
+            <div class="relative h-48 w-full"><canvas id="chart-flow"></canvas></div>
+            <div class="mt-4 flex justify-between items-end border-t border-slate-700 pt-3">
+                <span class="text-sm text-slate-400">Current Reading</span>
+                <span id="val-flow" class="text-2xl font-bold font-mono text-blue-400">-- L/m</span>
+            </div>
+        </div>
+
+        <!-- Chart: H2S Gas -->
+        <div class="glass-panel p-5 relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-3 opacity-10">
+                <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+            </div>
+            <h2 class="text-xl font-semibold mb-1">Gas Leak Sensor</h2>
+            <p class="text-xs text-slate-400 mb-4">Warning if > 5 PPM</p>
+            <div class="relative h-48 w-full"><canvas id="chart-h2s"></canvas></div>
+            <div class="mt-4 flex justify-between items-end border-t border-slate-700 pt-3">
+                <span class="text-sm text-slate-400">Current Reading</span>
+                <span id="val-h2s" class="text-2xl font-bold font-mono text-purple-400">-- PPM</span>
+            </div>
+        </div>
+
+        <!-- Chart: Corrosion -->
+        <div class="glass-panel p-5">
+            <h2 class="text-xl font-semibold mb-1">Corrosion Sensor</h2>
+            <p class="text-xs text-slate-400 mb-4">Pipe wall thickness (Critical if < 5.0 mm)</p>
+            <div class="relative h-48 w-full"><canvas id="chart-corrosion"></canvas></div>
+            <div class="mt-4 flex justify-between items-end border-t border-slate-700 pt-3">
+                <span class="text-sm text-slate-400">Current Extent</span>
+                <span id="val-corrosion" class="text-2xl font-bold font-mono text-orange-400">-- mm</span>
+            </div>
+        </div>
+
+        <div class="glass-panel p-5 flex flex-col">
+            <h2 class="text-xl font-semibold mb-1">Valve Status</h2>
+            <p class="text-xs text-slate-400 mb-4">Pipeline isolation valve</p>
+            
+            <div class="flex-grow grid place-items-center w-full min-h-[160px]">
+                <!-- Definitive Grid Centering -->
+                <div class="relative w-32 h-32">
+                    <!-- Circular progress SVG -->
+                    <svg class="w-32 h-32 transform -rotate-90">
+                        <circle cx="64" cy="64" r="56" stroke="rgba(255,255,255,0.1)" stroke-width="12" fill="none" />
+                        <circle id="valve-circle" cx="64" cy="64" r="56" stroke="#10b981" stroke-width="12" fill="none" stroke-dasharray="351" stroke-dashoffset="0" class="transition-all duration-1000 ease-out" />
+                    </svg>
+                    <div class="center-overlay text-center">
+                        <span id="val-valve" class="text-3xl font-bold">100%</span>
+                        <span class="text-xs uppercase tracking-wider text-slate-400">OPEN</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Alerts Feed -->
+        <div class="glass-panel p-5 flex flex-col h-64 overflow-hidden">
+            <h2 class="text-xl font-semibold mb-3 border-b border-slate-700 pb-2">Recent Alerts</h2>
+            <div id="alerts-container" class="flex-grow overflow-y-auto pr-2 space-y-3">
+                <!-- Javascript will populate this -->
+                <p class="text-slate-500 text-sm italic text-center mt-10">Awaiting edge data...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts (Optimized Loading) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script>
+        window.addEventListener('load', () => {
+            // Global chart instances
+            const charts = {};
+
+            function initChart(ctxId, color, label) {
+                const ctx = document.getElementById(ctxId).getContext('2d');
+                return new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: label,
+                            data: [],
+                            borderColor: color,
+                            backgroundColor: color + '33', // 20% opacity
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { display: false },
+                            y: { 
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: { color: 'rgba(255, 255, 255, 0.5)', font: { size: 10 } }
+                            }
+                        },
+                        animation: { 
+                            duration: 800,
+                            easing: 'linear'
+                        }
+                    }
+                });
+            }
+
+            charts.pressure = initChart('chart-pressure', '#06b6d4', 'PSI');
+            charts.flow = initChart('chart-flow', '#3b82f6', 'L/min');
+            charts.h2s = initChart('chart-h2s', '#a855f7', 'PPM');
+            charts.corrosion = initChart('chart-corrosion', '#f97316', 'mm');
+
+            // Convert UTC timestamp to local time HH:MM:SS
+            function toLocal(isoStr) {
+                const d = new Date(isoStr);
+                return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            }
+
+            function updateChart(chart, dataArray) {
+                chart.data.labels = dataArray.map(d => toLocal(d.time));
+                chart.data.datasets[0].data = dataArray.map(d => d.value);
+                chart.update('none'); // Update without default animation (faster for live data)
+            }
+
+            async function fetchDashboardData() {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+                try {
+                    const response = await fetch('/api/status/', { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const res = await response.json();
+                    const data = res.data;
+                    const source = res.source;
+
+                    const now = new Date();
+                    document.getElementById('last-updated').innerText = `Last Sync: ${now.toLocaleTimeString()}`;
+                    document.getElementById('sqs-status').innerText = source === 'AWS_DYNAMODB' ? 'Live Cloud Data' : 'Fog Node (Local)';
+                    document.getElementById('sqs-status').className = `font-bold ${source === 'AWS_DYNAMODB' ? 'text-cyan-400' : 'text-slate-300'}`;
+
+                    // Update charts if data exists
+                    if (data.PRESSURE && data.PRESSURE.length) {
+                        updateChart(charts.pressure, data.PRESSURE);
+                        const last = data.PRESSURE[data.PRESSURE.length-1].value;
+                        const el = document.getElementById('val-pressure');
+                        el.innerText = `${last} PSI`;
+                    }
+
+                    if (data.FLOW_RATE && data.FLOW_RATE.length) {
+                        updateChart(charts.flow, data.FLOW_RATE);
+                        document.getElementById('val-flow').innerText = `${data.FLOW_RATE[data.FLOW_RATE.length-1].value} L/m`;
+                    }
+
+                    if (data.H2S_GAS && data.H2S_GAS.length) {
+                        updateChart(charts.h2s, data.H2S_GAS);
+                        const last = data.H2S_GAS[data.H2S_GAS.length-1].value;
+                        document.getElementById('val-h2s').innerText = `${last} PPM`;
+                    }
+
+                    if (data.CORROSION && data.CORROSION.length) {
+                        updateChart(charts.corrosion, data.CORROSION);
+                        document.getElementById('val-corrosion').innerText = `${data.CORROSION[data.CORROSION.length-1].value} mm`;
+                    }
+
+                    // Update Valve
+                    if (data.VALVE_POS && data.VALVE_POS.length) {
+                        const pct = data.VALVE_POS[data.VALVE_POS.length-1].value;
+                        document.getElementById('val-valve').innerText = `${pct}%`;
+                        const offset = 351 - (351 * pct / 100);
+                        document.getElementById('valve-circle').style.strokeDashoffset = offset;
+                        document.getElementById('valve-circle').style.stroke = pct < 50 ? '#ef4444' : '#10b981';
+                    }
+
+                    // Handle Alerts Feed
+                    const container = document.getElementById('alerts-container');
+                    const alerts = data.ALERT || [];
+                    
+                    if (alerts.length > 0) {
+                        container.innerHTML = alerts.slice(-10).reverse().map(a => `
+                            <div class="bg-red-900/40 border border-red-500/50 p-3 rounded-lg text-sm mb-3 animate-pulse-slow">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-red-400 font-bold uppercase text-[10px] tracking-widest">${a.sensor || 'SYSTEM'}</span>
+                                    <span class="text-slate-500 text-[10px]">${toLocal(a.time)}</span>
+                                </div>
+                                <div class="text-slate-200 leading-relaxed font-medium">${a.message}</div>
+                            </div>
+                        `).join('');
+                    }
+
+                } catch (error) {
+                    console.error("Sync Error:", error.name === 'AbortError' ? 'Request Timed Out' : error);
+                    document.getElementById('last-updated').innerHTML = `<span class="text-red-400 font-bold">Sync Failed: Reconnecting...</span>`;
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            // Live high-frequency polling
+            async function livePoll() {
+                await fetchDashboardData();
+                setTimeout(livePoll, 800);
+            }
+            livePoll();
+        });
+    </script>
+</body>
+
+</html>
