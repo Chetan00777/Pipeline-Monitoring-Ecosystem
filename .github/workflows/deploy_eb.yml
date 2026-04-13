@@ -1,0 +1,39 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Generate Deployment Package
+        run: |
+          zip -r deployment.zip . -x "*.git*" -x "*.venv*" -x "scratch/*" -x "pipeline_data.db" -x "__pycache__/*" -x ".env"
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          session_token: ${{ secrets.AWS_SESSION_TOKEN }}
+          application_name: pipeline-monitor
+          environment_name: pipeline-monitor-live
+          version_label: "v-${{ github.sha }}-${{ github.run_number }}"
+          region: us-east-1
+          deployment_package: deployment.zip
